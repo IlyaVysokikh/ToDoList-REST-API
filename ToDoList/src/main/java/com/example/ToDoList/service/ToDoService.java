@@ -1,8 +1,10 @@
 package com.example.ToDoList.service;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
-
+import java.util.stream.Collectors;
+import java.util.Comparator;
 
 import com.example.ToDoList.entity.ToDo;
 import com.example.ToDoList.repository.TodoRepository;
@@ -69,14 +71,40 @@ public class ToDoService {
         return existingToDo;
     }
 
-    public List<ToDo> getAllToDoOrThrow() {
-        return toDoRepository.findAll();
+    public List<ToDo> getFilteredToDos(boolean onlyNotCompleted, String dateFilter) {
+        List<ToDo> allToDos = toDoRepository.findAll();
+    
+        Comparator<ToDo> byCompleteAndDate = Comparator.comparing(ToDo::getIsComplete)
+                .thenComparing(ToDo::getCompleteByDate);
+    
+        return allToDos.stream()
+                .filter(todo -> !onlyNotCompleted || !todo.getIsComplete())
+                .filter(todo -> filterByDate(todo, dateFilter))
+                .sorted(byCompleteAndDate)
+                .collect(Collectors.toList());
     }
+    
+    
 
+    private boolean filterByDate(ToDo todo, String dateFilter) {
+        if (dateFilter == null || dateFilter.isEmpty()) {
+            return true; 
+        }
 
-    // public ToDo markToDoCompleted(Long toDoId) {
-    //     ToDo existingToDo
-    // }
+        LocalDate currentDate = LocalDate.now();
 
+        switch (dateFilter.toLowerCase()) {
+            case "today":
+                return todo.getCompleteByDate().isEqual(currentDate);
+            case "week":
+                return todo.getCompleteByDate().isAfter(currentDate.minusDays(1))
+                        && todo.getCompleteByDate().isBefore(currentDate.plusWeeks(1));
+            case "month":
+                return todo.getCompleteByDate().isAfter(currentDate.minusDays(1))
+                        && todo.getCompleteByDate().isBefore(currentDate.plusMonths(1));
+            default:
+                throw new IllegalArgumentException("Invalid date filter: " + dateFilter);
+        }
+    }
 
 }
